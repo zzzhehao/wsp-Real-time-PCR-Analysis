@@ -39,7 +39,7 @@ wsp_analysis <- function() {
                           "## wsp qPCR Evaluation by Zhehao Hu (2024) ## \n",
                           "Plate ID: ", plate_ID, "\n",
                           "Date: ", format(Sys.time(), "%a %b %e %H:%M:%S %Y"),"\n",
-                          "GitHub: https://github.com/zzzhehao/BA-Analysis", "\n",
+                          "GitHub: https://github.com/zzzhehao/wsp-Real-time-PCR-Analysis", "\n",
                           "================================================================="))
   
   # IC parameter

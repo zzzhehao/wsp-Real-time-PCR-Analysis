@@ -1,0 +1,1 @@
+1. Make sure all the dependencies are installed before running the script
