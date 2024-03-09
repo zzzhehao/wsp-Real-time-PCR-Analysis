@@ -2,6 +2,7 @@
 library(readxl)
 library(tidyverse)
 library(ggpubr)
+library(ggplot2)
 library(purrr)
 
 # Import Data
@@ -34,9 +35,24 @@ stat.result <-
   group_by(Haplotype) %>% # Apply seperate tests by grouping samples according to haplotype
   t_test(sum_hatch_rate ~ Group) %>% # T-test comparing hatch rate between different treatment
   add_significance()
+stat.result # Display the dif test result
 
-stat.result
-library(ggplot2)
+# Show significance
+stat.result <- stat.result %>% add_xy_position(x="Group", dodge = 0.8)
+
+# test all groups
+stat.result.g <- 
+  rp.test %>% 
+  ungroup() %>% 
+  filter(!is.na(sum_hatch_rate)) %>% # Drop NAs
+  group_by(Group) %>%
+  t_test(sum_hatch_rate ~ Haplotype) %>% # T-test comparing hatch rate between different treatment
+  add_significance()
+
+stat.result.g # Display the t test result -> control HT1 vs control HT2 interesting
+stat.result.g <- stat.result.g[2,]
+stat.result.g <- stat.result.g %>% add_xy_position(x="Haplotype", dodge = 0.8)
+stat.result.g # extract
 
 # Labelling haplotypes
 n.hatchrate <- c(
@@ -65,9 +81,9 @@ f.58A <-
   scale_fill_manual(values = cbp5) +
   scale_colour_manual(values = cbp5) +
   xlab("") +
-  ylab("") +
+  ylab("Egg hatch rate") +
   stat_pvalue_manual(stat.result, step.increase = 0.01, size = 4, tip.length = 0.01)+
   scale_y_continuous(labels = scales::percent,
                      breaks = c(0,0.2,0.4,0.6,0.8,1),
-                     expand = expansion(mult = c(0.07,0.11)))
+                     expand = expansion(mult = c(0.07,0.15)))
 f.58A

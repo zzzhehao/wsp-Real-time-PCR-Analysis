@@ -10,7 +10,7 @@ library(ggsignif)
 library(ggpubr)
 
 # Import data
-datapath <- "/Users/hu_zhehao/Library/Mobile Documents/com~apple~CloudDocs/UHH/B.Sc. Biologie/Bachelorarbeit/DNA Samples/Zhehao_Hu_Bachelorthesis_Data.xlsx"
+datapath <- "/Zhehao_Hu_Bachelorthesis_Data.xlsx"
 # Parents data
 mamas <- read_xlsx(datapath, sheet = "Tetracycline", range = "A3:V61")
 # F1 data
@@ -93,7 +93,12 @@ n_fun.fin <- function(x){
   return(data.frame(y = 9,
                     label = length(x)))
 }
-pfin.ord <- c("Parent", "F1")
+df <- df %>% mutate(generation = case_when(
+  .default = generation,
+  generation == "Parent" ~ "Mother"
+  )
+)
+pfin.ord <- c("Mother", "F1")
 f5.8b.f1in <- 
   df %>% filter(!is.na(Group)) %>% filter(!is.na(Haplotype)) %>%
   ggplot(aes(x = factor(generation, level = pfin.ord), y = `Initial Target Copies`)) +
@@ -109,7 +114,7 @@ f5.8b.f1in <-
         axis.line = element_blank()) +
   scale_fill_manual(values = cbp5) +
   xlab("") +
-  ylab("") +
+  ylab("wsp gene copies/µg DNA") +
   stat_pvalue_manual(stat.result, step.increase = 0.05, size = 3) +
   scale_y_continuous(trans = scales::log10_trans(), 
                      breaks = c(1e3,1e5,1e7, 1e9),

@@ -9,7 +9,7 @@ library(ggplot2)
 library(ggsignif)
 
 # Import data
-raw <- read_xlsx("/Users/hu_zhehao/Library/Mobile Documents/com~apple~CloudDocs/UHH/B.Sc. Biologie/Bachelorarbeit/DNA Samples/Zhehao_Hu_Bachelorthesis_Data.xlsx", sheet = "Pool Screen", range = "A4:P113")
+raw <- read_xlsx("Zhehao_Hu_Bachelorthesis_Data.xlsx", sheet = "Pool Screen", range = "A4:P113")
 raw <- raw %>% mutate(Haplotype = case_when(
   Haplotype == "HT1st" ~ "HT1*",
   Haplotype == "HT2/2st" ~ "HT2/2*",
@@ -56,7 +56,7 @@ f5.6 <- raw %>% filter(!is.na(`Ct Mean`)) %>% filter(!is.na(Haplotype)) %>% filt
         aspect.ratio = 0.8) +
   scale_fill_manual(values = cbp4) +
   scale_color_manual(values = c("#FBD173","#FF904D","#DA5858")) +
-  ylab("") +
+  ylab("wsp gene copies/µg DNA") +
   xlab("")+
   labs(title = "") +
   stat_pvalue_manual(stat.result, step.increase = 0.05, size = 3) +

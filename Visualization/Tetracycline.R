@@ -12,7 +12,7 @@ library(tidyverse)
 library(broom)
 
 # Import data
-raw <- read_xlsx("/Users/hu_zhehao/Library/Mobile Documents/com~apple~CloudDocs/UHH/B.Sc. Biologie/Bachelorarbeit/DNA Samples/Zhehao_Hu_Bachelorthesis_Data.xlsx", sheet = "Tetracycline", range = "A3:U61") %>% filter(!is.na(Group)) %>% filter(!is.na(Gl_ID))
+raw <- read_xlsx("Zhehao_Hu_Bachelorthesis_Data.xlsx", sheet = "Tetracycline", range = "A3:U61") %>% filter(!is.na(Group)) %>% filter(!is.na(Gl_ID))
 
 # Data manipulation
 raw <- raw %>% select(c(1,4,5,14,15,16,20,21))
@@ -71,7 +71,7 @@ f5.7B.quantity_group.quantified <-
   ) +
   scale_fill_manual(values = cbp5) +
   xlab("") +
-  ylab("Initial wsp-Gene Copies") +
+  ylab("wsp gene copies/µg DNA") +
   stat_pvalue_manual(stat.result, step.increase = 0.01, size = 4, tip.length = 0.01)+
   scale_y_continuous(trans = scales::log10_trans(), 
                      breaks = c(1e5,1e7,1e8),

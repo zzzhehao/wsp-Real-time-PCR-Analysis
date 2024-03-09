@@ -11,6 +11,7 @@ theme_USGS_box <- function(base_family = "serif", ...){
       panel.background = element_rect(fill = "grey96", colour = "grey20")
     )
 }
+# https://www.usgs.gov/
 
 #### Colorblindness-friendly palette ####
 # https://davidmathlogic.com/colorblind/#%23648FFF-%23785EF0-%23DC267F-%23FE6100-%23FFB000

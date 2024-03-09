@@ -4,7 +4,7 @@ library(ggplot2)
 library(ggpattern)
 
 # Import data
-raw <- read_xlsx("/Users/hu_zhehao/Library/Mobile Documents/com~apple~CloudDocs/UHH/B.Sc. Biologie/Bachelorarbeit/DNA Samples/Zhehao_Hu_Bachelorthesis_Data.xlsx", sheet = "Pool Screen", range = "A4:N113") %>% filter(!is.na(`Suggest Result`)) %>% filter(`Suggest Result`!="Anomaly") %>% filter(!is.na(`Haplotype`)) 
+raw <- read_xlsx("Zhehao_Hu_Bachelorthesis_Data.xlsx", sheet = "Pool Screen", range = "A4:N113") %>% filter(!is.na(`Suggest Result`)) %>% filter(`Suggest Result`!="Anomaly") %>% filter(!is.na(`Haplotype`)) 
 
 # Data manipulation
 raw <- raw %>% mutate(Haplotype = case_when(
@@ -19,9 +19,18 @@ raw <- raw %>% mutate(`Suggest Result` = case_when(
   .default = `Suggest Result`
 ))
 
+# since ggplot do not have native pie chart geom
+# summarize each groups
 raw2 <- raw %>% group_by(Haplotype, `Suggest Result`) %>% tally()
+# filter out unrelated data
+raw2 <- raw2 %>% filter(Haplotype != "HT3" & Haplotype != "2023 HT1*")
+# make result as factor instead of string
 raw2$`Suggest Result` <- as.factor(raw2$`Suggest Result`)
-raw2 <- raw2 %>% group_by(Haplotype) %>% mutate(labels = n/sum(n))
+# calculate total n from each group
+raw2 <- merge(raw2, aggregate(n~Haplotype, raw2, sum), by = "Haplotype")
+# calculate each group's portion in concerned haplotype
+raw2 <- raw2 %>% ungroup() %>% group_by(Haplotype) %>% mutate(labels = `n.x`/`n.y`)
+raw2
 
 # Define theme
 theme_USGS_box <- function(base_family = "serif", ...){
@@ -38,10 +47,10 @@ f5.5 <-
   raw2 %>% filter(Haplotype != "HT3" & Haplotype != "2023 HT1*") %>% group_by(Haplotype) %>%
   ggplot(aes(x="", y=labels, group = `Suggest Result`))+
   geom_bar(aes(fill=`Suggest Result`), 
-           stat = "identity") +
-  ylim(0,1) +
-  coord_polar(theta = "y") +
-  geom_text(aes(label = round(n, digits = 2), x = 1.2),
+           stat = "identity") + # make a barplot of the result frequency in each haplotype (facet)
+  ylim(0,1) + # unite y axis range since y is frequencies
+  coord_polar(theta = "y") + # make barplot a pie chart
+  geom_text(aes(label = round(`n.x`, digits = 2), x = 1.2),
             position = position_stack(vjust = 0.5),
             size = 2.5,
             vjust = -1,
@@ -62,3 +71,4 @@ f5.5 <-
   ylab("") +
   labs(fill = "Wolbachia infection")+
   labs(title = "")
+f5.5
