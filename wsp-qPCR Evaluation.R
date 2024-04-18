@@ -1,8 +1,9 @@
-# Setup
-# Manually create a new folder called "Evaluation", all the report files will be exported there
+# Manually create a new folder called "Evaluation" under the root folder of the working directory, all report files will be exported there
+# This file defines the wsp_analysis() function and can be called in other scripts using source() function
+# There are several parameters may need to be adjust or updated, look out the ⚠️ in comments.
 
 wsp_analysis <- function() {
-  
+  #### Setup ####
   library(readxl)
   library(plyr)
   library(purrr)
@@ -14,7 +15,7 @@ wsp_analysis <- function() {
   library(ggpubr)
   library(gridExtra)
   library(knitr)
-  library(log4r) #citation
+  library(log4r)
   
   # Set working directory to current location
   setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
@@ -22,11 +23,11 @@ wsp_analysis <- function() {
   # Set path to xls. report file with all datasheets generated from StepOne Real-time PCR System
   file.xls.report <- paste0(xls_filePath, plate_ID,".xls")
   
-  # Standard curve parameters (wA1)
+  # ⚠️ Standard curve parameters (wA1)
   slope.a1 <- -3.595
   y_intcpt.a1 <- 39.274
   eff.a1 <- 89.732
-  # Standard curve parameter (Average)
+  # ⚠️ Standard curve parameter (Average)
   slope.a2b <- -3.531
   y_intcpt.a2b <- 39.951
   eff.a2b <- 91.994
@@ -42,7 +43,7 @@ wsp_analysis <- function() {
                           "GitHub: https://github.com/zzzhehao/wsp-Real-time-PCR-Analysis", "\n",
                           "================================================================="))
   
-  # IC parameter
+  # ⚠️ IC parameter
   ic4 <- 19.72
   ic4SD <- 0.56
   
@@ -70,7 +71,7 @@ wsp_analysis <- function() {
   # Import amplification data
   ampl <- as_tibble(readxl::read_xls(file.xls.report, sheet = "Amplification Data", range = "A8:E3848")) %>% drop_na()
   
-  # aes setups
+  # Aes setups, this can also be specified in other AES scripts and managed centrally
   theme_USGS_box <- function(base_family = "serif", ...){
     theme_bw(base_family = base_family, ...) +
       theme(
@@ -200,10 +201,12 @@ wsp_analysis <- function() {
     mutate(EvaCode = paste0("E-",as.character(agr1), as.character(agr2), as.character(agr3)))
   
   # Calculate initial target copies
-  icfactor <- as.numeric((sreport %>% filter(Sample == "IC4") %>% select(Ct_Mean) / ic4 )) ^ -1 # Calculate factor for calibrating IC
+  # Calculate factor for calibrating IC
+  icfactor <- as.numeric((sreport %>% filter(Sample == "IC4") %>% select(Ct_Mean) / ic4 )) ^ -1 
   icfactor <- c(rep(icfactor, length(sreport$Sample)))
-  sreport <- sreport %>% mutate(Ct_cal = Ct_Mean * icfactor) #Calibrate IC
-  
+  # Calibrate IC
+  sreport <- sreport %>% mutate(Ct_cal = Ct_Mean * icfactor) 
+  # Calculate target copies
   sreport <- sreport %>% mutate(`Initial target copies` = case_when(
     eva1 == "Quantify" ~ case_when(
       eva2 == "wA1" ~ formatC(round(((10^(-1/slope.a1))^(y_intcpt.a1-Ct_Mean))*100, digit = 0), format = "e", digits = 2),
