@@ -1,4 +1,4 @@
-# IMPORTANT: This script is no longer usefull after post-submission version, use wsp_analysis_batch() instead
+# IMPORTANT: This script is no longer useful after post-submission version, use wsp_analysis_batch() instead
 
 
 # Set working directory to current location

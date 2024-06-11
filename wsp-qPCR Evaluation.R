@@ -1,4 +1,4 @@
-wsp_analysis <- function(xls_filePath, scparameters=NULL, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE) {
+wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE) {
   
   # Setup requirements
   if (!require("Require")) install.packages("Require")
@@ -39,7 +39,6 @@ wsp_analysis <- function(xls_filePath, scparameters=NULL, Ct_ic=NULL, SD_ic=NULL
     info(fileLogger, paste0("Analyzing Plate: ", plate_ID))
   }
   
-  if (is.null(scparameters)) {
     # Standard curve parameters (wA1)
     slope.a1 <- -3.595
     y_intcpt.a1 <- 39.274
@@ -48,10 +47,6 @@ wsp_analysis <- function(xls_filePath, scparameters=NULL, Ct_ic=NULL, SD_ic=NULL
     slope.a2b <- -3.531
     y_intcpt.a2b <- 39.951
     eff.a2b <- 91.994
-  } else {
-    info(fileLogger, paste0("fatal: Please specify parameters for standard curve"))
-    return()
-  }
   
   # IC parameter
   if (!is.null(Ct_ic)) {
@@ -422,14 +417,14 @@ wsp_analysis <- function(xls_filePath, scparameters=NULL, Ct_ic=NULL, SD_ic=NULL
 
 }
 
-wsp_analysis_batch <- function(xls_folderPath, scparameters=NULL, Ct_ic=NULL, SD_ic=NULL) {
+wsp_analysis_batch <- function(xls_folderPath, Ct_ic=NULL, SD_ic=NULL) {
   if (!require("Require")) install.packages("Require")
   Require::Require(c("ggplot2", "readxl", "plyr", "rlist", "tidyverse", "ggpubr", "gridExtra", "log4r"), require = FALSE)
   pacman::p_load(c("ggplot2", "readxl", "plyr", "rlist", "tidyverse", "ggpubr", "gridExtra", "log4r"), character.only = TRUE)
   
   # Setup Output Folder
   output_path <- paste0("Batch_Evaluation_", today(), "/")
-  dir.create(output_path, showWarnings = FALSE)
+  dir.create(output_path)
   
   # Setup Log
   logFile <- paste0(output_path, "wsp qPCR Evaluation-", today(), ".log")
@@ -447,6 +442,6 @@ wsp_analysis_batch <- function(xls_folderPath, scparameters=NULL, Ct_ic=NULL, SD
     "Number of Plate: ", length(files)
   ))
   
-  walk(.x=files, ~ wsp_analysis(.x, scparameters, Ct_ic, SD_ic, in_batch=TRUE), .progress = TRUE)
+  walk(.x=files, ~ wsp_analysis(xls_filePath = .x, Ct_ic = Ct_ic, SD_ic = SD_ic, in_batch=TRUE), .progress = TRUE)
   info(fileLogger, paste0("Please be aware, the automatic analysis cannot replace manual inspection. Evaluation code will provide further detailed analysis results. \n", "# End of evaluation \n"))
 }
