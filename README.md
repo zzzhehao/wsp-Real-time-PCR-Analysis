@@ -18,7 +18,7 @@ This is a part of the supplements from my bachelor thesis **How’s _Wolbachia_ 
 
 ## 2 Setup
 
-All analysis were performed using R Statistical Software (v4.2.0; R Core Team, 2022) and RStudio (v2023.9.0.463).
+All analyses were performed using R Statistical Software (v4.2.0; R Core Team, 2022) and RStudio (v2023.9.0.463).
 
 ## 3 Features after thesis Submission
 
@@ -50,8 +50,8 @@ The _.xls_ file exported by StepOne Real time PCR system must contain following 
 #### 4.2.1 Description
 
 The wsp_analysis functions perform the initial data preparation and interpretation regarding *Wolbachia* infection status.
-- `wsp_analysis` analyse single report file.
-- `wsp_analysis_batch` analyse multiple files in the same folder as a batch and multiple runs belonging to the same project.
+- `wsp_analysis` analyses single report file.
+- `wsp_analysis_batch` analyses multiple files in the same folder as a batch and multiple runs belonging to the same project.
 
 #### 4.2.2 Usage
 
