@@ -1,75 +1,94 @@
-# Manually create a new folder called "Evaluation" under the root folder of the working directory, all report files will be exported there
-# This file defines the wsp_analysis() function and can be called in other scripts using source() function
-# There are several parameters may need to be adjust or updated, look out the ⚠️ in comments.
+wsp_analysis <- function(xls_filePath, scparameters=NULL, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE) {
+  
+  # Setup requirements
+  if (!require("Require")) install.packages("Require")
+  if (!require("pacman")) install.packages("pacman")
+  Require::Require(c("ggplot2", "readxl", "plyr", "rlist", "tidyverse", "ggpubr", "gridExtra", "log4r"), require = FALSE)
+  pacman::p_load(c("ggplot2", "readxl", "plyr", "rlist", "tidyverse", "ggpubr", "gridExtra", "log4r"), character.only = TRUE)
 
-wsp_analysis <- function() {
-  #### Setup ####
-  library(readxl)
-  library(plyr)
-  library(purrr)
-  library(rlist)
-  library(dplyr)
-  library(ggplot2)
-  library(tidyr)
-  library(stringr)
-  library(ggpubr)
-  library(gridExtra)
-  library(knitr)
-  library(log4r)
+  # Create output folder
+  if (in_batch) {
+    output_path <- paste0("Batch_Evaluation_", today(), "/")
+    dir.create(output_path, showWarnings = FALSE)
+  } else {
+    dir.create("Evaluation", showWarnings = FALSE)
+    output_path <- "Evaluation/"
+  }
   
-  # Set working directory to current location
-  setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+  # Extract file name for plate_ID
+  plate_ID <- gsub("\\.xls$", "", basename(xls_filePath))
   
-  # Set path to xls. report file with all datasheets generated from StepOne Real-time PCR System
-  file.xls.report <- paste0(xls_filePath, plate_ID,".xls")
+
+
+  # Log Header
+  if (!in_batch) {
+    # Log Setup
+    logFile <- "wsp qPCR Evaluation.log"
+    fileLogger <- logger(threshold = "INFO",appenders = file_appender(logFile))
+    info(fileLogger, paste0("\n",
+                            "================================================================= \n",
+                            "## wsp qPCR Evaluation by Zhehao Hu (2024) ## \n",
+                            "Plate ID: ", plate_ID, "\n",
+                            "Date: ", format(Sys.time(), "%a %b %e %H:%M:%S %Y"),"\n",
+                            "GitHub: https://github.com/zzzhehao/wsp-Real-time-PCR-Analysis", "\n",
+                            "================================================================="))
+    info(fileLogger, paste0("Raw Data: ", xls_filePath))
+  } else {
+    logFile <- paste0(output_path, "wsp qPCR Evaluation-", today(), ".log")
+    fileLogger <- logger(threshold = "INFO",appenders = file_appender(logFile))
+    info(fileLogger, paste0("Analyzing Plate: ", plate_ID))
+  }
   
-  # ⚠️ Standard curve parameters (wA1)
-  slope.a1 <- -3.595
-  y_intcpt.a1 <- 39.274
-  eff.a1 <- 89.732
-  # ⚠️ Standard curve parameter (Average)
-  slope.a2b <- -3.531
-  y_intcpt.a2b <- 39.951
-  eff.a2b <- 91.994
+  if (is.null(scparameters)) {
+    # Standard curve parameters (wA1)
+    slope.a1 <- -3.595
+    y_intcpt.a1 <- 39.274
+    eff.a1 <- 89.732
+    # Standard curve parameter (Average)
+    slope.a2b <- -3.531
+    y_intcpt.a2b <- 39.951
+    eff.a2b <- 91.994
+  } else {
+    info(fileLogger, paste0("fatal: Please specify parameters for standard curve"))
+    return()
+  }
   
-  # Log Setup
-  logFile <- "wsp qPCR Evaluation.log"
-  fileLogger <- logger(threshold = "INFO",appenders = file_appender(logFile))
-  info(fileLogger, paste0("\n",
-                          "================================================================= \n",
-                          "## wsp qPCR Evaluation by Zhehao Hu (2024) ## \n",
-                          "Plate ID: ", plate_ID, "\n",
-                          "Date: ", format(Sys.time(), "%a %b %e %H:%M:%S %Y"),"\n",
-                          "GitHub: https://github.com/zzzhehao/wsp-Real-time-PCR-Analysis", "\n",
-                          "================================================================="))
+  # IC parameter
+  if (!is.null(Ct_ic)) {
+    ic4 <- Ct_ic
+  } else {
+    ic4 <- 19.72
+  }
+
+  if (!is.null(SD_ic))  {
+    ic4SD <- SD_ic
+  } else {
+    ic4SD <- 0.56    
+  }
   
-  # ⚠️ IC parameter
-  ic4 <- 19.72
-  ic4SD <- 0.56
   
   #### Import ####
-  # Melt norm Data import
-  Mc.norm.raw <- as_tibble(readxl::read_xls(file.xls.report, sheet = "Melt Region Normalized Data", range = "A8:DQ104")) %>% select(-c(3,4)) %>% drop_na()
-  print(file.xls.report)
+  # Melt norm Data
+  Mc.norm.raw <- as_tibble(readxl::read_xls(xls_filePath, sheet = "Melt Region Normalized Data", range = "A8:DQ104")) %>% select(-c(3,4)) %>% drop_na()
   colnames(Mc.norm.raw)[c(1,2)] <- c("Well","Well_name")
   
-  # Melt derv Data import
-  Mc.drv.raw <- as_tibble(readxl::read_xls(file.xls.report, sheet = "Melt Region Derivative Data", range = "A8:DQ104")) %>% select(-c(3,4)) %>% drop_na()
+  # Melt derv Data
+  Mc.drv.raw <- as_tibble(readxl::read_xls(xls_filePath, sheet = "Melt Region Derivative Data", range = "A8:DQ104")) %>% select(-c(3,4)) %>% drop_na()
   colnames(Mc.drv.raw)[c(1,2)] <- c("Well","Well_name")
   
-  # Melt temp Data import
-  Mc.temp.raw <- as_tibble(readxl::read_xls(file.xls.report, sheet = "Melt Region Temperature Data", range = "A8:DQ104")) %>% select(-c(3,4)) %>% drop_na()
+  # Melt temp Data
+  Mc.temp.raw <- as_tibble(readxl::read_xls(xls_filePath, sheet = "Melt Region Temperature Data", range = "A8:DQ104")) %>% select(-c(3,4)) %>% drop_na()
   colnames(Mc.temp.raw)[c(1,2)] <- c("Well","Well_name")
   
   # Import result table
-  output <- as_tibble(readxl::read_xls(file.xls.report, sheet = "Results", range = "A8:S104"))
+  output <- as_tibble(readxl::read_xls(xls_filePath, sheet = "Results", range = "A8:S104"))
   colnames(output)[c(1,3,7,8)] <- c("Well_name","Sample","Ct","Ct_Mean")
   
   # set well no. in output
   output <- left_join(Mc.temp.raw[,c(1,2)],output, by = "Well_name")
   
   # Import amplification data
-  ampl <- as_tibble(readxl::read_xls(file.xls.report, sheet = "Amplification Data", range = "A8:E3848")) %>% drop_na()
+  ampl <- as_tibble(readxl::read_xls(xls_filePath, sheet = "Amplification Data", range = "A8:E3848")) %>% drop_na()
   
   # Aes setups, this can also be specified in other AES scripts and managed centrally
   theme_USGS_box <- function(base_family = "serif", ...){
@@ -89,7 +108,7 @@ wsp_analysis <- function() {
       )
   }
   
-  #### Data preperation ####
+  #### Data preparation ####
   # Find NTC
   output <- output %>% mutate(`Sample` = case_when(
     Task == "NTC" ~ "NTC",
@@ -126,7 +145,7 @@ wsp_analysis <- function() {
   # Find DB drops
   neg.readings <- rowSums(Mc.drv.raw[c(3:43)] < 0)
   DB <- neg.readings > 0
-  output <- left_join(output,as_tibble(data.frame(Mc.drv.raw[,2],DB,neg.readings)), by = "Well_name")
+  output <- left_join(output, as_tibble(data.frame(Mc.drv.raw[,2],DB,neg.readings)), by = "Well_name")
   
   # 79-peak percentage of initial signal
   output <- output %>% mutate(M77_70 = iM77/iM70)
@@ -217,17 +236,17 @@ wsp_analysis <- function() {
   #### Log ####
   # Overview
   info(fileLogger, paste0(
-    "  No. of Samples: ", nrow(sreport)-2, "\n",
-    "  Double Infection: ", nrow((sreport %>% filter(DB == TRUE))), "\n",
-    "  ⚠️ Inspection required: ", nrow((sreport %>% filter(`Suggest result` == "Inspect")))
+    "No. of Samples: ", nrow(sreport)-2,
+    ", Double Infection: ", nrow((sreport %>% filter(DB == TRUE))),
+    ", Inspection required: ", nrow((sreport %>% filter(`Suggest result` == "Inspect")))
   ))
   # Warning NTC
   CtNTC <- (sreport %>% filter(Sample == "NTC"))$Ct_Mean
   if (CtNTC < 30) {
-    warn(fileLogger, paste0("⚠️ Irregular NTC, Ct low   Ct: ",
+    warn(fileLogger, paste0("Irregular NTC, Ct low, Ct: ",
                             CtNTC))
   } else {
-    info(fileLogger, paste0("✅ NTC in range   Ct: ",
+    info(fileLogger, paste0("NTC in rangee, Ct: ",
                             CtNTC))
   }
   
@@ -350,28 +369,21 @@ wsp_analysis <- function() {
   
   
   #### Plots info ####
-  lgd <- ggplot()+
-    labs(title = paste0("Evaluation Code Inspection Infos"),
-         caption = paste0("\n","1.Digit","\n",
-                          "1,5: M77/70 too high; 2,6: M77/70 too low","\n\n",
-                          "2. Digit","\n",
-                          "1,3,5,6,7,9,11,13,14,15: wA1 involving DB","\n\n",
-                          "3. Digit","\n",
-                          "1: iM70 too high; 2: Ct too low; 3: iM70 too high, Ct too low"),
-    ) +
-    theme_USGS_box() +
-    theme(plot.caption.position = "panel",
-          aspect.ratio = 0.01,
-          plot.caption = element_text(hjust = 0))
+  # lgd <- ggplot()+
+  #   labs(title = paste0("Evaluation Code Inspection Infos"),
+  #        caption = paste0("\n","1.Digit","\n",
+  #                         "1,5: M77/70 too high; 2,6: M77/70 too low","\n\n",
+  #                         "2. Digit","\n",
+  #                         "1,3,5,6,7,9,11,13,14,15: wA1 involving DB","\n\n",
+  #                         "3. Digit","\n",
+  #                         "1: iM70 too high; 2: Ct too low; 3: iM70 too high, Ct too low"),
+  #   ) +
+  #   theme_USGS_box() +
+  #   theme(plot.caption.position = "panel",
+  #         aspect.ratio = 0.01,
+  #         plot.caption = element_text(hjust = 0))
   
-  #### Export ####
-  # Export Report
-  sreport[6:10] <- round(sreport[6:10], digit = 2)
-  sreport <- sreport %>% mutate(Status = "raw")
-  write.csv(sreport, file = as.character(paste0("Evaluation/",plate_ID, " Evaluation Results.csv")))
-  info(fileLogger, paste0("Tabular results are successfully saved at: " ,"Evaluation/",plate_ID, " Evaluation Results.csv"))
-  
-  # Export plots
+  #### Arrange plots ####
   combinelist <- function (list1, list2) {
     list(list1, list2)
   }
@@ -386,13 +398,55 @@ wsp_analysis <- function() {
     plt <- plt + theme(aspect.ratio = 0.8)
   }
   allplots <- map(allplots, pagealn)
-  allplots <- list.append(allplots, lgd)
+  # allplots <- list.append(allplots, lgd)
   
-  ggsave(file=as.character(paste0("Evaluation/",plate_ID, " Amplification and Melt Curve Plots.pdf")), marrangeGrob(grobs = allplots, nrow = 2, ncol = 1, top = NULL), width = 210, height = 297, units = "mm", device = "pdf")
-  info(fileLogger, paste0("Graphic results are successfully saved at: " ,"Evaluation/",plate_ID, " Amplification and Melt Curve Plots.pdf"))
+  #### Export ####
+  
+  # Export short report
+  sreport[6:10] <- round(sreport[6:10], digit = 2)
+  sreport <- sreport %>% mutate(Status = "raw")
+  write.csv(sreport, file = as.character(paste0(output_path, plate_ID, " Evaluation Results.csv")))
+  info(fileLogger, paste0("Tabular results are successfully saved at: " ,output_path,plate_ID, " Evaluation Results.csv"))
+  
+  # Export graphical results
+  ggsave(file=as.character(paste0(output_path, plate_ID, " Amplification and Melt Curve Plots.pdf")), marrangeGrob(grobs = allplots, nrow = 2, ncol = 1, top = NULL), width = 210, height = 297, units = "mm", device = "pdf")
+  info(fileLogger, paste0("Graphic results are successfully saved at: " ,output_path,plate_ID, " Amplification and Melt Curve Plots.pdf"))
   
   print(paste0("Evaluation of Plate No. ", plate_ID, " has been succesfully completed."))
-  info(fileLogger, paste0("✅ Evaluation of Plate ID. ", plate_ID, " has been succesfully completed. No fatal events occured."))
-  info(fileLogger, paste0("Please be aware, the automatic analysis cannot replace manual inspection. Evaluation code will provide further detailed analysis results. \n", "# \n", "# \n", "# End of evaluation \n", "# \n", "#"))
+  
+  info(fileLogger, paste0("Evaluation of Plate ID. ", plate_ID, " has been succesfully completed. No fatal events occured."))
+  
+  if (!in_batch) {
+    info(fileLogger, paste0("Please be aware, the automatic analysis cannot replace manual inspection. Evaluation code will provide further detailed analysis results. \n", "# \n", "# \n", "# End of evaluation \n", "# \n", "#"))
+  }
 
+}
+
+wsp_analysis_batch <- function(xls_folderPath, scparameters=NULL, Ct_ic=NULL, SD_ic=NULL) {
+  if (!require("Require")) install.packages("Require")
+  Require::Require(c("ggplot2", "readxl", "plyr", "rlist", "tidyverse", "ggpubr", "gridExtra", "log4r"), require = FALSE)
+  pacman::p_load(c("ggplot2", "readxl", "plyr", "rlist", "tidyverse", "ggpubr", "gridExtra", "log4r"), character.only = TRUE)
+  
+  # Setup Output Folder
+  output_path <- paste0("Batch_Evaluation_", today(), "/")
+  dir.create(output_path, showWarnings = FALSE)
+  
+  # Setup Log
+  logFile <- paste0(output_path, "wsp qPCR Evaluation-", today(), ".log")
+  fileLogger <- logger(threshold = "INFO",appenders = file_appender(logFile))
+  info(fileLogger, paste0("\n",
+                          "================================================================= \n",
+                          "# wsp qPCR Evaluation by Zhehao Hu (2024) - Batch Analysis \n",
+                          "Date: ", format(Sys.time(), "%a %b %e %H:%M:%S %Y"),"\n",
+                          "GitHub: https://github.com/zzzhehao/wsp-Real-time-PCR-Analysis", "\n",
+                          "Raw Data Folder: ", xls_folderPath, "\n",
+                          "================================================================="))
+  
+  files <- paste0(xls_folderPath, "/", list.files(path = xls_folderPath, pattern = "\\.xls$", full.names = FALSE, recursive = FALSE))
+  info(fileLogger, paste0(
+    "Number of Plate: ", length(files)
+  ))
+  
+  walk(.x=files, ~ wsp_analysis(.x, scparameters, Ct_ic, SD_ic, in_batch=TRUE), .progress = TRUE)
+  info(fileLogger, paste0("Please be aware, the automatic analysis cannot replace manual inspection. Evaluation code will provide further detailed analysis results. \n", "# End of evaluation \n"))
 }
