@@ -1,6 +1,6 @@
-wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE) {
+wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, ancient=FALSE) {
   
-  # Setup requirements
+  # Install requirements
   if (!require("Require")) install.packages("Require")
   if (!require("pacman")) install.packages("pacman")
   Require::Require(c("ggplot2", "readxl", "plyr", "rlist", "tidyverse", "ggpubr", "gridExtra", "log4r"), require = FALSE)
@@ -417,7 +417,8 @@ wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE) {
 
 }
 
-wsp_analysis_batch <- function(xls_folderPath, Ct_ic=NULL, SD_ic=NULL) {
+wsp_analysis_batch <- function(xls_folderPath, Ct_ic=NULL, SD_ic=NULL, ancient=FALSE) {
+  #### Install requirements ####
   if (!require("Require")) install.packages("Require")
   Require::Require(c("ggplot2", "readxl", "plyr", "rlist", "tidyverse", "ggpubr", "gridExtra", "log4r"), require = FALSE)
   pacman::p_load(c("ggplot2", "readxl", "plyr", "rlist", "tidyverse", "ggpubr", "gridExtra", "log4r"), character.only = TRUE)
@@ -426,7 +427,7 @@ wsp_analysis_batch <- function(xls_folderPath, Ct_ic=NULL, SD_ic=NULL) {
   output_path <- paste0("Batch_Evaluation_", today(), "/")
   dir.create(output_path)
   
-  # Setup Log
+  #### Setup Log ####
   logFile <- paste0(output_path, "wsp qPCR Evaluation-", today(), ".log")
   fileLogger <- logger(threshold = "INFO",appenders = file_appender(logFile))
   info(fileLogger, paste0("\n",
@@ -436,12 +437,13 @@ wsp_analysis_batch <- function(xls_folderPath, Ct_ic=NULL, SD_ic=NULL) {
                           "GitHub: https://github.com/zzzhehao/wsp-Real-time-PCR-Analysis", "\n",
                           "Raw Data Folder: ", xls_folderPath, "\n",
                           "================================================================="))
-  
   files <- paste0(xls_folderPath, "/", list.files(path = xls_folderPath, pattern = "\\.xls$", full.names = FALSE, recursive = FALSE))
   info(fileLogger, paste0(
     "Number of Plate: ", length(files)
   ))
   
+  #### Analyse ####
   walk(.x=files, ~ wsp_analysis(xls_filePath = .x, Ct_ic = Ct_ic, SD_ic = SD_ic, in_batch=TRUE), .progress = TRUE)
+  
   info(fileLogger, paste0("Please be aware, the automatic analysis cannot replace manual inspection. Evaluation code will provide further detailed analysis results. \n", "# End of evaluation \n"))
 }
