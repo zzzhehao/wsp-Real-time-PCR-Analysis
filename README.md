@@ -20,7 +20,7 @@ This is a part of the supplements from my bachelor thesis **How’s _Wolbachia_ 
 
 All analyses were performed using R Statistical Software (v4.2.0; R Core Team, 2022) and RStudio (v2023.9.0.463).
 
-## 3 Features after thesis Submission
+## 3 Features after thesis submission
 
 The original version corresponding to thesis submission is at the [commit 01edbdf](https://github.com/zzzhehao/wsp-Real-time-PCR-Analysis/tree/01ebdbf8a724d36446cb1e920add2505835d4866) 
 
@@ -28,9 +28,10 @@ The original version corresponding to thesis submission is at the [commit 01edbd
 - **feat:** add arguments in function to customise IC and standard curve parameter
 - **perf:** no need to specify plate_ID anymore, it also accepts characters  
 - **feat:** no need to manually check for required packages  
-- **perf:** improved log formatting and layout  
-- **docs:** removed evaluation code information in plot document, expected to be added back as independent document in the future
+- **perf:** improve log formatting and layout  
+- **docs:** remove evaluation code information in plot document, expected to be added back as independent document in the future
 - **fix**: removed customization of standard curve parameters, this now should be manually altered in **wsp-qPCR Evaluation.R** at line 42-49
+- **docs**: add EvaCode documentation in README
 
 ## 4 Analyse Data
 
@@ -90,7 +91,7 @@ Operating the function will export two reports to output folder.
 - *wa1DB*: Double infection involving strain *w*LytA1
 - *Suggest result*: Suggested result, yet not fully reliable
 - *Warning*: If *Inspect* shows, manual interpretation is mandatory
-- *EvaCode*: Traceback of the evaluation logic
+- *EvaCode*: Traceback of the evaluation logic, see chapter 5
 - *Ct_cal*: Adjusted Ct regarding to interplate calibrator
 - *Initial target copies*: (if available) Fragment copies per µg DNA
 
@@ -112,3 +113,62 @@ wsp_analysis_batch("Sample Data")
 wsp_analysis("Sample Data/20230512.xls", Ct_ic = 18.28, SD_ic = 0.43)
 ```
 
+## 5 EvaCode
+
+**EvaCode** is a three digit code assigned by `wsp_analysis`, it performs initial interpretation of the sample result, but is not fully reliable, taken rare occurring events into account. It provides a first view of the sample results and help for final interpretation.
+
+Each code digit corresponds to a category after a set of examination. The category, i.e. the decimal code which embed in EvaCode is one-hot encoded answer for a set of binary examination. 
+
+E.g., an evaluation code of “E-343” suggests “Positive sample; No Tm2, Tm1 in *wsp* range (positive), confirmed by melting curve; Clear for quantification; *w*LytA1 infection”, the last code (3) can be ignored since the first code already clearly assigned the sample as positive.
+
+### 5.1 Digit 1: Negative or Positive?
+
+| Digit of binary code | Test              | Binary options                                                                                                                                                                                               |
+| -------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1                    | `!is.na(Tm2)`     | 0: No Tm2; 1: Tm2 exists.                                                                                                                                                                                    |
+| 2                    | `Tm1 > 77.5`      | 0: Tm1 < 77.5ºC, amplification is not in _wsp_ range, thus suggest as negative;<br>1: Tm1 > 77.5ºC, amplification is in _wsp_ range, thus suggest as positive.                                               |
+| 3                    | `iM77/iM70 > 0.6` | 0: Main drop of melting curve is within 70ºC – 77ºC, likely 74ºC, thus suggest as negative;<br>1: Main drop of melting curve is not within 70ºC – 77ºC, likely within 77ºC – 79ºC, thus suggest as positive. |
+
+| Binary Code | Decimal Code (1. EvaCode) | Result   | Description                                                                                                              | Warning message |
+| ----------- | ------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------ | --------------- |
+| 000         | 0                         | Negative | No Tm2, Tm1 not in _wsp_ range (negative), confirmed by melting curve.                                                   |                 |
+| 001         | 1                         | Inspect  | No Tm2, Tm1 not in _wsp_ range (negative), inconsistent to melting curve.                                                | Inspect         |
+| 010         | 2                         | Inspect  | No Tm2, Tm1 in _wsp_ range (positive) but inconsistent to melting curve.                                                 | Inspect         |
+| 011         | 3                         | Quantify | No Tm2, Tm1 in _wsp_ range (positive), confirmed by melting curve, clear for quantification                              |                 |
+| 100         | 4                         | Negative | Tm2 exists, Tm1 not in _wsp_ range (negative), confirmed by melting curve.                                               |                 |
+| 101         | 5                         | Inspect  | Tm2 exists, Tm1 not in _wsp_ range (negative) but inconsistent to melting curve.                                         | Inspect         |
+| 110         | 6                         | Inspect  | Tm2 exists, Tm1 in _wsp_ range (positive) but inconsistent to melting curve.                                             | Inspect         |
+| 111         | 7                         | Positive | Tm2 exists, Tm1 in _wsp_ range (positive), confirmed by melting curve, presence of Tm2 suggests potential contamination. | Contamination   |
+
+### 5.2 Digit 2: Infection Type
+
+| Digit of binary code | Test          | Binary options                                                                                                                               |
+| -------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1                    | `Tm1 > 79.5`  | 0: Tm1 < 79.5ºC, non-*w*LytA1 infection;<br>1: Tm1 > 79.5ºC, *w*LytA1-infection.                                                             |
+| 2                    | `is.na(DB)`   | 0: No double infection;<br>1: Double infected.                                                                                               |
+| 3                    | `iM72 < iM77` | 0: No peak within range 72ºC-77ºC, thus suggest as *w*LytA2 + *w*LytB DB;<br>1: Peak within range 72ºC-77ºC, suggests *w*LytA1 involving DB. |
+
+| Binary Code | Decimal Code (2. EvaCode) | Result             | Description                                                                                                                      | Warning message |
+| ----------- | ------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| 000         | 0                         | *w*LytA2/*w*LytB   | *w*LytA2/*w*LytB infection.                                                                                                      |                 |
+| 001         | 1                         | Inspect            | *w*LytA2/*w*LytB infection but inconsistent to melting curve.                                                                    | irregular DB    |
+| 010         | 2                         | *w*LytA2 + *w*LytB | *w*LytA2 + *w*LytB double infection.                                                                                             |                 |
+| 011         | 3                         | Inspect            | *w*LytA2 + *w*LytB double infection but inconsistent to melting curve.                                                           | irregular DB    |
+| 100         | 4                         | *w*LytA1           | *w*LytA1 infection.                                                                                                              |                 |
+| 101         | 5                         | Inspect            | *w*LytA1 involving double infection, but no DB detected.                                                                         | irregular DB    |
+| 110         | 6                         | Inspect            | Tm1 suggests *w*LytA1 involving double infection, but inconsistent to melting curve.                                             | irregular DB    |
+| 111         | 7                         | Inspect            | *w*LytA1 involving double infection, confirmed by melting curve, matches expectation but not observed in natural sample to date. | irregular DB    |
+
+### 5.3 Digit 3: Negative Check
+
+| Digit of binary code | Test         | Binary options                                                                                                                             |
+| -------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1                    | `Ct < 29`    | 0: Ct in range;<br>1: Ct too low.                                                                                                          |
+| 2                    | `iM70 < 5.3` | 0: Melting curve matches NTC profile;<br>1: Melting curve suggest large amount of fluorescence signal at 70ºC, likely something amplified. |
+
+| Binary Code | Decimal Code (3. EvaCode) | Result   | Description                               | Warning message |
+| ----------- | ------------------------- | -------- | ----------------------------------------- | --------------- |
+| 00          | 0                         | Negative |                                           |                 |
+| 01          | 1                         | Inspect  | High fluorescence signal at 70ºC.         | Inspect         |
+| 10          | 2                         | Inspect  | Ct low                                    | Inspect         |
+| 11          | 3                         | Inspect  | Ct low, high fluorescence signal at 70ºC. | Inspect         |
