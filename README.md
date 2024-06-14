@@ -8,7 +8,7 @@ This is a part of the supplements from my bachelor thesis **How’s _Wolbachia_ 
 
 ```
 |	
-+-- Evaluation MasterScript.R # this script is outdated no longer useful
++-- Evaluation MasterScript.R # this script is outdated and no longer useful
 +-- wsp-qPCR Evaluation.R # Code of the function
 |
 +-- Visualization/ # Scripts for visualization of the thesis data
@@ -32,6 +32,8 @@ The original version corresponding to thesis submission is at the [commit 01edbd
 - **docs:** remove evaluation code information in plot document, expected to be added back as independent document in the future
 - **fix**: removed customization of standard curve parameters, this now should be manually altered in **wsp-qPCR Evaluation.R** at line 42-49
 - **docs**: add EvaCode documentation in README
+- **feat**: adapt new workflow: interplate calibrator now has new default: "IPC", can also be specified manually; old workflow can be switched by specifying `ancient = True`
+- **feat**: adapt new workflow: sample name now should be assigned to 'sample name' in StepOne software in default
 
 ## 4 Analyse Data
 
@@ -57,9 +59,9 @@ The wsp_analysis functions perform the initial data preparation and interpretati
 #### 4.2.2 Usage
 
 ```R
-wsp_analysis(xls_filePath, Ct_ic = NULL, SD_ic = NULL, in_batch = FALSE )
+wsp_analysis(xls_filePath, Ct_ic = NULL, SD_ic = NULL, in_batch = FALSE, ancient = FALSE, IC_name = "IPC")
 
-wsp_analysis_batch(xls_folderPath, Ct_ic = NULL, SD_ic = NULL)
+wsp_analysis_batch(xls_folderPath, Ct_ic = NULL, SD_ic = NULL, ancient = FALSE, IC_name = "IPC")
 ```
 
 #### 4.2.3 Arguments
@@ -73,6 +75,10 @@ wsp_analysis_batch(xls_folderPath, Ct_ic = NULL, SD_ic = NULL)
 `SD_ic`: Optional. Customizable input for standard deviation of Ct from interplate calibrator. Plate with IC Ct outside this range will trigger warning in report. No direct effect on analyses.
 
 `in_batch`: Internal. Used by `wsp_analysis_batch` to process all file together.
+
+`ancient`: Optional. If true, assuming original workflow.
+
+`IC_name`: Optional. If interplate calibrator is not named as default "IPC", the name should be specified here. It is important that this remains consistent for batch analysis.
 
 #### 4.2.4 Outputs
 
