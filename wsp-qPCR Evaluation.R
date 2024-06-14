@@ -1,4 +1,4 @@
-wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, ancient=FALSE) {
+wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, ancient=FALSE, IC_name="IPC") {
   
   # Install requirements
   if (!require("Require")) install.packages("Require")
@@ -25,7 +25,7 @@ wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, a
     # Log Setup
     logFile <- "wsp qPCR Evaluation.log"
     fileLogger <- logger(threshold = "INFO",appenders = file_appender(logFile))
-    info(fileLogger, paste0("\n",
+    info(fileLogger, paste0("\n", "\n", "\n",
                             "================================================================= \n",
                             "## wsp qPCR Evaluation by Zhehao Hu (2024) ## \n",
                             "Plate ID: ", plate_ID, "\n",
@@ -77,7 +77,12 @@ wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, a
   
   # Import result table
   output <- as_tibble(readxl::read_xls(xls_filePath, sheet = "Results", range = "A8:S104"))
-  colnames(output)[c(1,3,7,8)] <- c("Well_name","Sample","Ct","Ct_Mean")
+  if (ancient) {
+    colnames(output)[c(1,3,7,8)] <- c("Well_name","Sample","Ct","Ct_Mean") # imperfect dealing in original workflow on StepOne system: falsely assigned sample parameter
+    IC_name <- "IC4" # Original workflow has assigned interplate calibrator with name "IC4", now can be specified or the default is set as "IPC", it is important that this remains consistent throughout whole project when using batch analysis
+  } else {
+    colnames(output)[c(1,2,7,8)] <- c("Well_name","Sample","Ct","Ct_Mean")
+  }
   
   # set well no. in output
   output <- left_join(Mc.temp.raw[,c(1,2)],output, by = "Well_name")
@@ -111,12 +116,21 @@ wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, a
   ))
   
   # Assign global sample ID
-  output <- output %>%
-    mutate(Gl_ID = case_when(
-      str_detect(Sample, "Sample ") ~ paste0(plate_ID, sprintf('%02d', as.numeric(gsub("Sample ", "", Sample)))),
-      .default = paste0(plate_ID, "_", Sample))
-    ) %>%
-    relocate(Gl_ID, .before = Sample)
+  if (ancient) {
+    # Old workflow
+    output <- output %>%
+      mutate(Gl_ID = case_when(
+        str_detect(Sample, "Sample ") ~ paste0(plate_ID, sprintf('%02d', as.numeric(gsub("Sample ", "", Sample)))),
+        .default = paste0(plate_ID, "_", Sample))
+      ) %>%
+      relocate(Gl_ID, .before = Sample)
+  } else {
+    # Adapting new workflow
+    output <- output %>%
+      mutate(Gl_ID = paste0(plate_ID, Sample)) %>%
+      relocate(Gl_ID, .before = Sample)
+  }
+  
   
   # Initial melt curve signal
   output <- left_join(output,Mc.norm.raw[,c(2,3)], by = "Well_name")
@@ -259,7 +273,11 @@ wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, a
   
   # add result summarise to each list
   linfo <- select(
-    left_join(select(output, c("Gl_ID", "Well")), select(sreport, c("Gl_ID", "Ct_Mean","Tm1", "Tm2", "iM70", "DB", "neg.readings", "M77_70", "Suggest result","Initial target copies")), by = "Gl_ID"), 
+    left_join(
+      select(output, c("Gl_ID", "Well")), 
+      select(sreport, c("Gl_ID", "Ct_Mean","Tm1", "Tm2", "iM70", "DB", "neg.readings", "M77_70", "Suggest result","Initial target copies")), 
+      by = "Gl_ID", 
+      relationship = "many-to-many"), # Silence warning
     c("Well","Gl_ID","Ct_Mean", "Tm1", "Tm2", "iM70", "DB", "neg.readings", "M77_70", "Suggest result","Initial target copies"))
   linfo <- dlply(linfo,.(Well))
   l <- map2(l,linfo,list)
@@ -417,7 +435,7 @@ wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, a
 
 }
 
-wsp_analysis_batch <- function(xls_folderPath, Ct_ic=NULL, SD_ic=NULL, ancient=FALSE) {
+wsp_analysis_batch <- function(xls_folderPath, Ct_ic=NULL, SD_ic=NULL, ancient=FALSE, IC_name="IPC") {
   #### Install requirements ####
   if (!require("Require")) install.packages("Require")
   Require::Require(c("ggplot2", "readxl", "plyr", "rlist", "tidyverse", "ggpubr", "gridExtra", "log4r"), require = FALSE)
@@ -443,7 +461,7 @@ wsp_analysis_batch <- function(xls_folderPath, Ct_ic=NULL, SD_ic=NULL, ancient=F
   ))
   
   #### Analyse ####
-  walk(.x=files, ~ wsp_analysis(xls_filePath = .x, Ct_ic = Ct_ic, SD_ic = SD_ic, in_batch=TRUE), .progress = TRUE)
+  walk(.x=files, ~ wsp_analysis(xls_filePath = .x, Ct_ic = Ct_ic, SD_ic = SD_ic, in_batch=TRUE, ancient=ancient, IC_name=IC_name), .progress = TRUE)
   
   info(fileLogger, paste0("Please be aware, the automatic analysis cannot replace manual inspection. Evaluation code will provide further detailed analysis results. \n", "# End of evaluation \n"))
 }
