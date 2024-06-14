@@ -1,4 +1,4 @@
-wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, ancient=FALSE, IC_name="IPC") {
+wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, ancient=FALSE, IC_name="IPC", threshold=NULL) {
   
   # Install requirements
   if (!require("Require")) install.packages("Require")
@@ -78,10 +78,10 @@ wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, a
   # Import result table
   output <- as_tibble(readxl::read_xls(xls_filePath, sheet = "Results", range = "A8:S104"))
   if (ancient) {
-    colnames(output)[c(1,3,7,8)] <- c("Well_name","Sample","Ct","Ct_Mean") # imperfect dealing in original workflow on StepOne system: falsely assigned sample parameter
+    colnames(output)[c(1,3,7,8)] <- c("Well_name","Sample","Ct","Ct_Median") # imperfect dealing in original workflow on StepOne system: falsely assigned sample parameter
     IC_name <- "IC4" # Original workflow has assigned interplate calibrator with name "IC4", now can be specified or the default is set as "IPC", it is important that this remains consistent throughout whole project when using batch analysis
   } else {
-    colnames(output)[c(1,2,7,8)] <- c("Well_name","Sample","Ct","Ct_Mean")
+    colnames(output)[c(1,2,7,8)] <- c("Well_name","Sample","Ct","Ct_Median")
   }
   
   # set well no. in output
@@ -169,7 +169,7 @@ wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, a
     group_by(Gl_ID) %>%
     reframe(
       Sample = Sample, 
-      Ct_Mean = median(Ct), 
+      Ct_Median = median(Ct), 
       Tm1 = median(Tm1), 
       Tm2 = median(Tm2), 
       iM60 = median(`iM60`),
@@ -207,7 +207,7 @@ wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, a
   
   # 3.algorithm: negative double check
   sreport <- sreport %>% mutate(agr3 =  0+
-                                  ifelse(Ct_Mean < 30, 2, 0) + 
+                                  ifelse(Ct_Median < 30, 2, 0) + 
                                   ifelse(iM70>5.3, 1, 0) 
   )
   eva3 <- as_tibble(data.frame(agr3=c(0:3),eva3=c("Negative", rep("Inspect",3))))
@@ -230,15 +230,15 @@ wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, a
   
   # Calculate initial target copies
   # Calculate factor for calibrating IC
-  icfactor <- as.numeric((sreport %>% filter(Sample == "IC4") %>% select(Ct_Mean) / ic4 )) ^ -1 
+  icfactor <- as.numeric((sreport %>% filter(Sample == IC_name) %>% select(Ct_Median) / ic4 )) ^ -1 
   icfactor <- c(rep(icfactor, length(sreport$Sample)))
   # Calibrate IC
-  sreport <- sreport %>% mutate(Ct_cal = Ct_Mean * icfactor) 
+  sreport <- sreport %>% mutate(Ct_cal = Ct_Median * icfactor) 
   # Calculate target copies
   sreport <- sreport %>% mutate(`Initial target copies` = case_when(
     eva1 == "Quantify" ~ case_when(
-      eva2 == "wA1" ~ formatC(round(((10^(-1/slope.a1))^(y_intcpt.a1-Ct_Mean))*100, digit = 0), format = "e", digits = 2),
-      .default = formatC(round(((10^(-1/slope.a2b))^(y_intcpt.a2b-Ct_Mean))*100, digit = 0), format = "e", digits = 2)
+      eva2 == "wA1" ~ formatC(round(((10^(-1/slope.a1))^(y_intcpt.a1-Ct_Median))*100, digit = 0), format = "e", digits = 2),
+      .default = formatC(round(((10^(-1/slope.a2b))^(y_intcpt.a2b-Ct_Median))*100, digit = 0), format = "e", digits = 2)
     )
   ))
   
@@ -249,8 +249,11 @@ wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, a
     ", Double Infection: ", nrow((sreport %>% filter(DB == TRUE))),
     ", Inspection required: ", nrow((sreport %>% filter(`Suggest result` == "Inspect")))
   ))
+  
+  info(fileLogger, paste0("Adjusting Ct with factor: ", round(icfactor[1], 4)))
+  
   # Warning NTC
-  CtNTC <- (sreport %>% filter(Sample == "NTC"))$Ct_Mean
+  CtNTC <- (sreport %>% filter(Sample == "NTC"))$Ct_Median
   if (CtNTC < 30) {
     warn(fileLogger, paste0("Irregular NTC, Ct low, Ct: ",
                             CtNTC))
@@ -275,10 +278,10 @@ wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, a
   linfo <- select(
     left_join(
       select(output, c("Gl_ID", "Well")), 
-      select(sreport, c("Gl_ID", "Ct_Mean","Tm1", "Tm2", "iM70", "DB", "neg.readings", "M77_70", "Suggest result","Initial target copies")), 
+      select(sreport, c("Gl_ID", "Ct_Median","Tm1", "Tm2", "iM70", "DB", "neg.readings", "M77_70", "Suggest result","Initial target copies")), 
       by = "Gl_ID", 
       relationship = "many-to-many"), # Silence warning
-    c("Well","Gl_ID","Ct_Mean", "Tm1", "Tm2", "iM70", "DB", "neg.readings", "M77_70", "Suggest result","Initial target copies"))
+    c("Well","Gl_ID","Ct_Median", "Tm1", "Tm2", "iM70", "DB", "neg.readings", "M77_70", "Suggest result","Initial target copies"))
   linfo <- dlply(linfo,.(Well))
   l <- map2(l,linfo,list)
   
@@ -372,6 +375,11 @@ wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, a
             aspect.ratio = 1,
             plot.caption = element_text(hjust = 0))
     
+    if (!is.null(threshold)) {
+      plota <- plota +
+        geom_hline(yintercept = threshold, color = "red")
+    }
+    
     return(plota)
     plota$layers <- list()
   }
@@ -380,21 +388,6 @@ wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, a
   amplots <- map(ampl, all.plot.a)
   
   
-  
-  #### Plots info ####
-  # lgd <- ggplot()+
-  #   labs(title = paste0("Evaluation Code Inspection Infos"),
-  #        caption = paste0("\n","1.Digit","\n",
-  #                         "1,5: M77/70 too high; 2,6: M77/70 too low","\n\n",
-  #                         "2. Digit","\n",
-  #                         "1,3,5,6,7,9,11,13,14,15: wA1 involving DB","\n\n",
-  #                         "3. Digit","\n",
-  #                         "1: iM70 too high; 2: Ct too low; 3: iM70 too high, Ct too low"),
-  #   ) +
-  #   theme_USGS_box() +
-  #   theme(plot.caption.position = "panel",
-  #         aspect.ratio = 0.01,
-  #         plot.caption = element_text(hjust = 0))
   
   #### Arrange plots ####
   combinelist <- function (list1, list2) {
@@ -435,7 +428,7 @@ wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, a
 
 }
 
-wsp_analysis_batch <- function(xls_folderPath, Ct_ic=NULL, SD_ic=NULL, ancient=FALSE, IC_name="IPC") {
+wsp_analysis_batch <- function(xls_folderPath, Ct_ic=NULL, SD_ic=NULL, ancient=FALSE, IC_name="IPC", threshold=NULL) {
   #### Install requirements ####
   if (!require("Require")) install.packages("Require")
   Require::Require(c("ggplot2", "readxl", "plyr", "rlist", "tidyverse", "ggpubr", "gridExtra", "log4r"), require = FALSE)
@@ -460,8 +453,33 @@ wsp_analysis_batch <- function(xls_folderPath, Ct_ic=NULL, SD_ic=NULL, ancient=F
     "Number of Plate: ", length(files)
   ))
   
+  # Calculate IC Mean and SD
+  extract_ic <- function(path) {
+    res <- as_tibble(readxl::read_xls(path, sheet = "Results", range = "A8:S104"))
+    if (ancient) {
+      res <- res %>% select(c(3, 8))
+    } else {
+      res <- res %>% select(c(2, 8))
+    }
+    colnames(res) <- c("Sample", "Ct")
+    IC <- median(drop_na(res[res$Sample == IC_name, ])$Ct)
+    return(IC)
+  }
+  ICs <- na.omit(unlist(map(files, extract_ic)))
+  
+  if (is.null(Ct_ic)) {
+    Ct_ic = mean(ICs)
+  }
+  if (is.null(SD_ic)) {
+    SD_ic = sd(ICs)
+  }
+  
+  info(fileLogger, paste0(
+    "IC Mean: ", Ct_ic, ", IC SD: ", SD_ic
+  ))
+  
   #### Analyse ####
-  walk(.x=files, ~ wsp_analysis(xls_filePath = .x, Ct_ic = Ct_ic, SD_ic = SD_ic, in_batch=TRUE, ancient=ancient, IC_name=IC_name), .progress = TRUE)
+  walk(.x=files, ~ wsp_analysis(xls_filePath = .x, Ct_ic = Ct_ic, SD_ic = SD_ic, in_batch=TRUE, ancient=ancient, IC_name=IC_name, threshold = threshold), .progress = TRUE)
   
   info(fileLogger, paste0("Please be aware, the automatic analysis cannot replace manual inspection. Evaluation code will provide further detailed analysis results. \n", "# End of evaluation \n"))
 }

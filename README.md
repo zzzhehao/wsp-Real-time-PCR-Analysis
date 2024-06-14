@@ -20,9 +20,9 @@ This is a part of the supplements from my bachelor thesis **How’s _Wolbachia_ 
 
 All analyses were performed using R Statistical Software (v4.2.0; R Core Team, 2022) and RStudio (v2023.9.0.463).
 
-## 3 Features after thesis submission
+## 3 Changes after thesis submission
 
-The original version corresponding to thesis submission is at the [commit 01edbdf](https://github.com/zzzhehao/wsp-Real-time-PCR-Analysis/tree/01ebdbf8a724d36446cb1e920add2505835d4866) 
+[Commit 01edbdf](https://github.com/zzzhehao/wsp-Real-time-PCR-Analysis/tree/01ebdbf8a724d36446cb1e920add2505835d4866) corresponds to the code in my thesis. Several new features as listed below has been added to the function and I recommend the newest version.
 
 - **feat:** add wsp_analysis_batch() as bulk analysis option
 - **feat:** add arguments in function to customise IC and standard curve parameter
@@ -30,11 +30,17 @@ The original version corresponding to thesis submission is at the [commit 01edbd
 - **feat:** no need to manually check for required packages  
 - **perf:** improve log formatting and layout  
 - **docs:** remove evaluation code information in plot document, expected to be added back as independent document in the future
-- **fix**: removed customization of standard curve parameters, this now should be manually altered in **wsp-qPCR Evaluation.R** at line 42-49
+- **fix**: removed customization of standard curve parameters, this now should be manually altered in _wsp-qPCR Evaluation.R_ at line 42-49
 - **docs**: add EvaCode documentation in README
 - **feat**: adapt new workflow: interplate calibrator now has new default: "IPC", can also be specified manually; old workflow can be switched by specifying `ancient = True`
 - **feat**: adapt new workflow: sample name now should be assigned to 'sample name' in StepOne software in default
-
+- **feat**: add optional argument `threshold` to display horizontal redline in amplification plot
+- **fix**: Ct_Mean is now named as Ct_Median. **Important**: this is only a naming change, the calculation remains unchanged, see [line 143](https://github.com/zzzhehao/wsp-Real-time-PCR-Analysis/blob/01ebdbf8a724d36446cb1e920add2505835d4866/wsp-qPCR%20Evaluation.R#L143) in _wsp-qPCR Evaluation.R_ at the original submission commit 
+- **feat**: Ct and SD from IC will be auto calculated while batch analysing data if not specified
+- **fix**: customized IC name didn't trigger calibration
+- **feat**: add IC calibration message in log
+- **fix**: threshold was not passed to nested function while batch analysing data
+ 
 ## 4 Analyse Data
 
 ### 4.1 Raw file
