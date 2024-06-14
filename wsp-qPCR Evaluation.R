@@ -1,4 +1,4 @@
-wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, ancient=FALSE, IC_name="IPC") {
+wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, ancient=FALSE, IC_name="IPC", threshold=NULL) {
   
   # Install requirements
   if (!require("Require")) install.packages("Require")
@@ -372,6 +372,11 @@ wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, a
             aspect.ratio = 1,
             plot.caption = element_text(hjust = 0))
     
+    if (!is.na(threshold)) {
+      plota <- plota +
+        geom_hline(yintercept = threshold, color = "red")
+    }
+    
     return(plota)
     plota$layers <- list()
   }
@@ -380,21 +385,6 @@ wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, a
   amplots <- map(ampl, all.plot.a)
   
   
-  
-  #### Plots info ####
-  # lgd <- ggplot()+
-  #   labs(title = paste0("Evaluation Code Inspection Infos"),
-  #        caption = paste0("\n","1.Digit","\n",
-  #                         "1,5: M77/70 too high; 2,6: M77/70 too low","\n\n",
-  #                         "2. Digit","\n",
-  #                         "1,3,5,6,7,9,11,13,14,15: wA1 involving DB","\n\n",
-  #                         "3. Digit","\n",
-  #                         "1: iM70 too high; 2: Ct too low; 3: iM70 too high, Ct too low"),
-  #   ) +
-  #   theme_USGS_box() +
-  #   theme(plot.caption.position = "panel",
-  #         aspect.ratio = 0.01,
-  #         plot.caption = element_text(hjust = 0))
   
   #### Arrange plots ####
   combinelist <- function (list1, list2) {
@@ -435,7 +425,7 @@ wsp_analysis <- function(xls_filePath, Ct_ic=NULL, SD_ic=NULL, in_batch=FALSE, a
 
 }
 
-wsp_analysis_batch <- function(xls_folderPath, Ct_ic=NULL, SD_ic=NULL, ancient=FALSE, IC_name="IPC") {
+wsp_analysis_batch <- function(xls_folderPath, Ct_ic=NULL, SD_ic=NULL, ancient=FALSE, IC_name="IPC", threshold=NULL) {
   #### Install requirements ####
   if (!require("Require")) install.packages("Require")
   Require::Require(c("ggplot2", "readxl", "plyr", "rlist", "tidyverse", "ggpubr", "gridExtra", "log4r"), require = FALSE)
