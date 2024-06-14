@@ -22,7 +22,7 @@ All analyses were performed using R Statistical Software (v4.2.0; R Core Team, 2
 
 ## 3 Changes after thesis submission
 
-[Commit 01edbdf](https://github.com/zzzhehao/wsp-Real-time-PCR-Analysis/tree/01ebdbf8a724d36446cb1e920add2505835d4866) corresponds to the code in my thesis. Several new features as listed below has been added to the function and I recommend the newest version.
+[Commit 01edbdf](https://github.com/zzzhehao/wsp-Real-time-PCR-Analysis/tree/01ebdbf8a724d36446cb1e920add2505835d4866) corresponds to the code in my thesis. Several new features as listed below have been added to the function and I recommend the newest version.
 
 - **feat:** add wsp_analysis_batch() as bulk analysis option
 - **feat:** add arguments in function to customise IC and standard curve parameter
@@ -40,6 +40,7 @@ All analyses were performed using R Statistical Software (v4.2.0; R Core Team, 2
 - **fix**: customized IC name didn't trigger calibration
 - **feat**: add IC calibration message in log
 - **fix**: threshold was not passed to nested function while batch analysing data
+- **docs**: add usage and example in README
  
 ## 4 Analyse Data
 
@@ -65,9 +66,9 @@ The wsp_analysis functions perform the initial data preparation and interpretati
 #### 4.2.2 Usage
 
 ```R
-wsp_analysis(xls_filePath, Ct_ic = NULL, SD_ic = NULL, in_batch = FALSE, ancient = FALSE, IC_name = "IPC")
+wsp_analysis(xls_filePath, Ct_ic = NULL, SD_ic = NULL, in_batch = FALSE, ancient = FALSE, IC_name = "IPC", threshold = NULL)
 
-wsp_analysis_batch(xls_folderPath, Ct_ic = NULL, SD_ic = NULL, ancient = FALSE, IC_name = "IPC")
+wsp_analysis_batch(xls_folderPath, Ct_ic = NULL, SD_ic = NULL, ancient = FALSE, IC_name = "IPC", threshold = NULL)
 ```
 
 #### 4.2.3 Arguments
@@ -85,6 +86,8 @@ wsp_analysis_batch(xls_folderPath, Ct_ic = NULL, SD_ic = NULL, ancient = FALSE, 
 `ancient`: Optional. If true, assuming original workflow.
 
 `IC_name`: Optional. If interplate calibrator is not named as default "IPC", the name should be specified here. It is important that this remains consistent for batch analysis.
+
+`threshold`: Optional. Numeric, a horizontal red line (y-interceptor) will be added in amplification plot
 
 #### 4.2.4 Outputs
 
@@ -121,8 +124,14 @@ wsp_analysis("Sample Data/20230406.xls")
 # Analyse multiple files
 wsp_analysis_batch("Sample Data")
 
-# Customize parameters
+# Customize IC parameters
 wsp_analysis("Sample Data/20230512.xls", Ct_ic = 18.28, SD_ic = 0.43)
+
+# Data from original workflow
+wsp_analysis("Sample Data/20230512.xls", ancient = TRUE)
+
+# Add threshold line in amplification plot
+wsp_analysis("Sample Data/20230512.xls", threshold = 1)
 ```
 
 ## 5 EvaCode
